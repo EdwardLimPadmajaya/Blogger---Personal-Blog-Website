@@ -1,8 +1,12 @@
+// /app/api/blog/route.js
+
 import { ConnectDB } from "@/lib/config/db";
 import BlogModel from "@/lib/models/BlogModel";
+import EmailModel from "@/lib/models/EmailModel";  // <-- import the EmailModel
 const { NextResponse } = require("next/server");
 import { writeFile } from "fs/promises";
-const fs = require("fs");
+import fs from "fs";
+import nodemailer from "nodemailer";
 
 const LoadDB = async () => {
   await ConnectDB();
@@ -23,33 +27,68 @@ export async function GET(request) {
 
 // POST: create a new blog
 export async function POST(request) {
-  const formData = await request.formData();
-  const timestamp = Date.now();
-  const image = formData.get("image");
-  const imageByteData = await image.arrayBuffer();
-  const buffer = Buffer.from(imageByteData);
-  const path = `./public/${timestamp}_${image.name}`;
-  await writeFile(path, buffer);
-  const imgUrl = `/${timestamp}_${image.name}`;
+  try {
+    const formData = await request.formData();
+    const timestamp = Date.now();
+    const image = formData.get("image");
+    const imageByteData = await image.arrayBuffer();
+    const buffer = Buffer.from(imageByteData);
+    const path = `./public/${timestamp}_${image.name}`;
+    await writeFile(path, buffer);
+    const imgUrl = `/${timestamp}_${image.name}`;
 
-  const blogData = {
-    title: formData.get("title"),
-    description: formData.get("description"),
-    category: formData.get("category"),
-    author: formData.get("author"),
-    image: imgUrl,
-    authorImg: formData.get("authorImg"),
-    date: new Date(),
-  };
+    const blogData = {
+      title: formData.get("title"),
+      description: formData.get("description"),
+      category: formData.get("category"),
+      author: formData.get("author"),
+      image: imgUrl,
+      authorImg: formData.get("authorImg"),
+      date: new Date(),
+    };
 
-  await BlogModel.create(blogData);
-  console.log("Blog Saved");
-  return NextResponse.json({ success: true, msg: "Blog Added" });
+    // 1) Create the new blog in the database
+    await BlogModel.create(blogData);
+    console.log("Blog Saved");
+
+    // 2) Fetch all subscribed emails
+    const subscribedEmails = await EmailModel.find({});
+
+    // 3) Create Nodemailer transporter
+    //    Replace these with real SMTP settings or a service like SendGrid/Gmail
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      secure: false, // or `true` if your SMTP uses TLS
+    });
+
+    // 4) Send emails to each subscriber 
+    //    (For large lists, consider using BCC or a queue to avoid timeouts)
+    for (const subscriber of subscribedEmails) {
+      await transporter.sendMail({
+        from: `"Your Site" <${process.env.SMTP_USER}>`,
+        to: subscriber.email,
+        subject: "New Article Published",
+        text: `Hello! We have a new article: "${blogData.title}"`,
+        // or use HTML if you want a richer format:
+        // html: `<p>Hello!</p><p>We have a new article: <strong>${blogData.title}</strong></p>`
+      });
+    }
+
+    return NextResponse.json({ success: true, msg: "Blog Added & Emails Sent" });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, msg: "Error creating blog" });
+  }
 }
 
 // DELETE: remove blog
 export async function DELETE(request) {
-  const id = request.nextUrl.searchParams.get("id");
+  const id = await request.nextUrl.searchParams.get("id");
   const blog = await BlogModel.findById(id);
   fs.unlink(`./public${blog.image}`, () => {});
   await BlogModel.findByIdAndDelete(id);
@@ -75,12 +114,8 @@ export async function PUT(request) {
     let imgUrl = existingBlog.image;
     const newImage = formData.get("image");
 
-    // "newImage" might be a File if changed, or just "undefined" if no file is selected
-    // Next.js formData file object has a "name" property if it's actually a file
     if (newImage && newImage.name) {
-      // Delete old image if you want to avoid orphaned files
       fs.unlink(`./public${existingBlog.image}`, () => {});
-
       const timestamp = Date.now();
       const imageByteData = await newImage.arrayBuffer();
       const buffer = Buffer.from(imageByteData);
@@ -96,7 +131,6 @@ export async function PUT(request) {
     existingBlog.author = formData.get("author");
     existingBlog.authorImg = formData.get("authorImg");
     existingBlog.image = imgUrl;
-    // date can remain or be updated with new Date() if you want to change last-modified
 
     await existingBlog.save();
 
