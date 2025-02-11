@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { blog_data, assets } from '@/Assets/assets';
+import { assets } from '@/Assets/assets';
 import Image from 'next/image';
 import Link from 'next/link';
 import axios from 'axios';
@@ -45,8 +45,10 @@ return (data?
     </div>
     <div className='mx-t max-w-[800px] md:mx-auto mt-[-100px] mb-10'>
         <Image className='border-4 border-white' src={data.image} width={1280} height={720} alt=''/>
-        <h1 className='my-8 text-[26px] font-semibold'>Introduction</h1>
-        <p>{data.description}</p>
+        <div
+          className="leading-7"
+          dangerouslySetInnerHTML={{ __html: data.description }}
+        />
         <div className='my-24'>
             <p className='text-black font-semibold my-4'>Share this article on social media</p>
             <div className='flex'>

@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 
 const page = () => {
   const [blogs, setBlogs] = React.useState([]);
+  
   const fetchBlogs = async () => {
     const response = await axios.get('/api/blog');
     setBlogs(response.data.blogs);
@@ -48,9 +49,18 @@ const page = () => {
           </thead>
           <tbody>
             {blogs.map((item, index) => {
-              return <BlogTableItem key={index} mongoId={item._id} author={item.author} title={item.title} authorImg={item.authorImg} date={item.date} deleteBlog={deleteBlog}/>;
+              return (
+                <BlogTableItem
+                  key={index}
+                  mongoId={item._id}
+                  author={item.author}
+                  title={item.title}
+                  authorImg={item.authorImg}
+                  date={item.date}
+                  deleteBlog={deleteBlog}
+                />
+              );
             })}
-            
           </tbody>
         </table>
       </div>

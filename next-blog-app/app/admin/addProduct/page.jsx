@@ -13,7 +13,7 @@ const page = () => {
         title: "",
         description: "",
         category: "Startup",
-        author: "Alex Bennett",
+        author: "Edward Lim Padmajaya",
         authorImg: "/author_img.png",
     })
 
@@ -47,7 +47,7 @@ const page = () => {
                 title: "",
                 description: "",
                 category: "Startup",
-                author: "Alex Bennett",
+                author: "Edward Lim Padmajaya",
                 authorImg: "/author_img.png",
             });
         } else {
